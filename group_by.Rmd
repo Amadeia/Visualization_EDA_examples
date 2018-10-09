@@ -1,0 +1,141 @@
+---
+title: "Visualization_group_by"
+author: "Amadeia Rector"
+date: "10/9/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+theme_set(theme_bw() + theme(legend.position = "bottom"))
+
+```
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(c("USW00094728", "USC00519397", "USS0023B17S"),
+                      var = c("PRCP", "TMIN", "TMAX"), 
+                      date_min = "2016-01-01",
+                      date_max = "2016-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY", 
+                      USC00519397 = "Waikiki_HA",
+                      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    month = lubridate::floor_date(date, unit = "month")) %>%
+  select(name, id, date, month, everything())
+
+
+```
+The theme sets how it will look - black and white.
+Load in weather data set
+Doing a call to a package - creating a month variable using lubridate package
+-rounded date to nearest month!
+-because we might want to look at weather within a month
+
+### Start a grouping
+```{r}
+weather_df %>% 
+  group_by(name)
+```
+
+```{r}
+weather_df %>% 
+  group_by(month)
+```
+```{r}
+weather_df %>% 
+  group_by(name, month)
+```
+It's creating layers.
+12X3= 36 month name groups
+you can ungroup by same thing too.
+
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  ungroup()
+```
+
+#### Summarize  
+looking at unique elements
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(number = n())
+```
+number is the name of your summary, and it's looking at the number which is n()
+The result is just the dataframe and the summary I computed inside
+
+#### Count first
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(number = n())
+```
+```{r}
+weather_df %>% 
+  group_by(month) %>% 
+  summarize(number = n())
+```
+got 3x number days because for all three weather stations
+
+```{r}
+weather_df %>% 
+ count(month)
+```
+count does same as summarize, doesn't create a dataframe
+
+## Grouped summaries
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(number = n(),
+            num_na = sum(is.na(tmax)),
+            mean_tmax = mean(tmax)) %>% 
+  View()
+```
+na.rm =TRUE removes missing values
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(number = n(),
+            median_prcip = median(prcp, na.rm = TRUE),
+            mean_tmax = mean(tmax,na.rm = TRUE)) %>%
+  View()
+```
+Could use spread by name or month to make it human-readable!
+```{r}
+weather_df %>%
+  group_by(name) %>%
+  mutate(centered_tmax = tmax - mean(tmax)) %>% 
+  ggplot(aes(x = date, y = centered_tmax, color = name)) + 
+    geom_point() 
+```
+computed a mean,  and created a single number value for the group
+
+## window functions can give rank order
+use rank
+```{r}
+weather_df %>%
+  group_by(name) %>%
+  mutate(tmax_rank = min_rank(tmax)) %>% 
+  View()
+  mutate()
+```
+
+Offsetting data so you can look at difference
+use lag ranks
+```{r}
+weather_df %>%
+  group_by(name) %>%
+  mutate(lag_max =lag(tmax)) %>% View
+```
+
+
